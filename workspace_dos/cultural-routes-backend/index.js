@@ -10,6 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Ruta de bienvenida para verificar que el servidor funciona
+app.get('/', (req, res) => {
+  res.send('🚀 Servidor de Rutas Culturales Chilenas activo y listo.');
+});
+
 // Inicializar Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
