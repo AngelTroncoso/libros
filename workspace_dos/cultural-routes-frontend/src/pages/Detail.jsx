@@ -15,7 +15,7 @@ export default function DetailPage({ session }) {
   const [isSaved, setIsSaved] = useState(false);
   const [savingLoading, setSavingLoading] = useState(false);
 
-  // Buscar metadatos básicos
+  // Buscar metadatos básicos en el archivo local de datos
   let content = null;
   culturalData.forEach(section => {
     const found = section.items.find(item => item.id === id);
@@ -25,7 +25,7 @@ export default function DetailPage({ session }) {
   useEffect(() => {
     if (!content) return;
     
-    // Check if saved
+    // Verificar si la ruta ya está guardada en la biblioteca del usuario
     if (session) {
       supabase
         .from('saved_routes')
@@ -38,7 +38,10 @@ export default function DetailPage({ session }) {
         });
     }
 
+    // --- CONFIGURACIÓN DE CONEXIÓN A GEMINI (Vía Backend) ---
+    // Usamos la variable de entorno VITE_API_URL configurada en Render
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
     fetch(`${apiUrl}/api/generate-experience`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,15 +52,18 @@ export default function DetailPage({ session }) {
         theme: content.theme
       })
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Error en el servidor: ${res.status}`);
+        return res.json();
+      })
       .then(json => {
-        if(json.error) throw new Error(json.error);
+        if (json.error) throw new Error(json.error);
         setData(json);
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
-        setError("Había un error conectando con la IA de Gemini. Revisa la consola.");
+        console.error("Error de conexión:", err);
+        setError("No se pudo conectar con la IA de Gemini. Asegúrate de que el backend esté corriendo y la URL sea correcta.");
         setLoading(false);
       });
 
@@ -65,7 +71,7 @@ export default function DetailPage({ session }) {
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, [content]);
+  }, [content, id, session]);
 
   // Manejador del sintetizador de voz nativo (TTS)
   const toggleAudio = () => {
@@ -76,8 +82,8 @@ export default function DetailPage({ session }) {
       setIsPlayingAudio(false);
     } else {
       const msg = new SpeechSynthesisUtterance(data.audio);
-      msg.lang = 'es-CL'; // Español de Chile preferiblemente
-      msg.rate = 0.95; // Algo más calmado para una ruta
+      msg.lang = 'es-CL'; 
+      msg.rate = 0.95; 
       
       msg.onend = () => setIsPlayingAudio(false);
       msg.onerror = () => setIsPlayingAudio(false);
@@ -155,7 +161,8 @@ export default function DetailPage({ session }) {
           <p>Adaptando el entorno cultural al modelo de 7 pasos...</p>
         </div>
       ) : error ? (
-        <div style={{ color: 'red', padding: '20px', border: '1px solid red', borderRadius: '8px' }}>
+        <div style={{ color: '#ff4b4b', padding: '24px', background: 'rgba(255, 75, 75, 0.1)', border: '1px solid #ff4b4b', borderRadius: '12px', textAlign: 'center' }}>
+          <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Error de Conexión</p>
           {error}
         </div>
       ) : (
@@ -195,16 +202,16 @@ export default function DetailPage({ session }) {
           </motion.section>
 
           <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-            <div style={{ background: '#181820', padding: '24px', borderRadius: '100px', display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={{ background: '#181820', padding: '24px', borderRadius: '32px', display: 'flex', alignItems: 'center', gap: '24px' }}>
               <button 
                 onClick={toggleAudio}
-                style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--accent)', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}
+                style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--accent)', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
               >
                 {isPlayingAudio ? <Pause fill="black" size={24} /> : <Play fill="black" size={24} />}
               </button>
               <div>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}><Headphones size={20} /> Guía Generada</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '500px' }}>{data.audio}</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '500px', lineHeight: 1.4 }}>{data.audio}</p>
               </div>
             </div>
           </motion.section>
